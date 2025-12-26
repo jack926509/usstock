@@ -61,31 +61,29 @@ const AppContent: React.FC = () => {
   const [hasKey, setHasKey] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
-  const checkKey = useCallback(async () => {
+  const checkKeyStatus = useCallback(async () => {
     if (window.aistudio) {
       const selected = await window.aistudio.hasSelectedApiKey();
       setHasKey(selected);
       if (!selected) setIsKeyModalOpen(true);
+      return selected;
     } else {
-      const apiKey = process.env.API_KEY;
-      const valid = apiKey && apiKey !== "" && apiKey !== '""';
-      setHasKey(!!valid);
-      if (!valid) setIsKeyModalOpen(true);
+      const exists = !!process.env.API_KEY && process.env.API_KEY !== '""';
+      setHasKey(exists);
+      if (!exists) setIsKeyModalOpen(true);
+      return exists;
     }
   }, []);
 
   useEffect(() => {
-    checkKey();
-  }, [checkKey]);
+    checkKeyStatus();
+  }, [checkKeyStatus]);
 
   const refreshIndices = useCallback(async () => {
-    if (!hasKey) return;
     setIndicesLoading(true);
     try {
       const data = await fetchMarketIndices();
-      if (data && data.length > 0) {
-        setIndices(data);
-      }
+      if (data && data.length > 0) setIndices(data);
     } catch (e: any) {
       if (e.message === "AUTH_REQUIRED") {
         setHasKey(false);
@@ -94,7 +92,7 @@ const AppContent: React.FC = () => {
     } finally {
       setIndicesLoading(false);
     }
-  }, [hasKey]);
+  }, []);
 
   useEffect(() => {
     if (hasKey) {
@@ -109,11 +107,11 @@ const AppContent: React.FC = () => {
       await window.aistudio.openSelectKey();
       setIsKeyModalOpen(false);
       setHasKey(true);
-      showToast("授權成功，正在同步數據...");
-      // 不再 reload，直接觸發數據抓取
-      setTimeout(refreshIndices, 500);
+      showToast("授權中，請稍候...");
+      // 根據規範，觸發後假設成功並刷新數據
+      setTimeout(refreshIndices, 1000);
     } else {
-      showToast("系統環境不支援金鑰選擇視窗，請手動確認環境變數。", "error");
+      showToast("系統環境不支援 API Key 選擇視窗，請確認環境變數已設定。", "error");
     }
   };
 
@@ -140,10 +138,6 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleImageUpload = useCallback((file: File) => {
-    if (!hasKey) {
-        setIsKeyModalOpen(true);
-        return;
-    }
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64String = reader.result as string;
@@ -166,16 +160,16 @@ const AppContent: React.FC = () => {
         }));
         showToast('分析完成');
       } catch (err: any) {
-        if (err.message === "AUTH_REQUIRED" || err.message?.includes("Requested entity was not found")) {
+        if (err.message === "AUTH_REQUIRED") {
           setHasKey(false);
           setIsKeyModalOpen(true);
         }
         setAnalysis(prev => ({ ...prev, isAnalyzing: false, error: err.message }));
-        showToast(err.message === "AUTH_REQUIRED" ? "需要有效金鑰" : (err.message || '分析失敗'), 'error');
+        showToast(err.message === "AUTH_REQUIRED" ? "請重新選取有效金鑰" : (err.message || '分析失敗'), 'error');
       }
     };
     reader.readAsDataURL(file);
-  }, [symbol, showToast, hasKey]);
+  }, [symbol, showToast]);
 
   const handleChatSubmit = useCallback(async () => {
     if (!chatInput.trim() || isChatLoading || !hasKey) return;
@@ -242,7 +236,7 @@ const AppContent: React.FC = () => {
         <div className="flex items-center gap-3">
           <button onClick={() => setIsKeyModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all">
             <div className={`w-2 h-2 rounded-full ${hasKey ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest text-slate-400">
               {hasKey ? 'System Ready' : 'Key Required'}
             </span>
           </button>
@@ -373,7 +367,7 @@ const AppContent: React.FC = () => {
           </div>
           <div className="space-y-2">
              <h4 className="text-[15px] font-black text-slate-900 uppercase">啟動專業版引擎</h4>
-             <p className="text-[11.5px] text-slate-500 font-bold leading-relaxed px-2">偵測到服務尚未連結或金鑰已過期。請點擊下方按鈕選取您的 API Key 以啟動功能。</p>
+             <p className="text-[11.5px] text-slate-500 font-bold leading-relaxed px-2">偵測到服務尚未連結或金鑰已過期。請點擊下方按鈕選取您的 API Key 以啟動分析功能。</p>
           </div>
           <button 
             onClick={handleActivateKey} 

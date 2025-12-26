@@ -4,12 +4,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // 移除 define 塊，讓 process.env.API_KEY 保留為執行階段引用，不被寫死
+  define: {
+    // 關鍵修復：將 process.env 對應到一個空物件，防止第三方庫崩潰
+    'process.env': {},
+    'process.version': '"v20.0.0"',
+  },
   server: {
     port: 3000
-  },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true
   }
 });

@@ -15,8 +15,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        // 確保在所有模組載入前，環境變數容器已存在
-        window.process = window.process || { env: { NODE_ENV: 'development' } };
+        // 強化的全域環境定義，解決啟動掛起
+        (function() {
+            window.process = window.process || {};
+            window.process.env = window.process.env || { NODE_ENV: 'production' };
+            window.process.version = window.process.version || '';
+            window.process.nextTick = window.process.nextTick || (function(cb) { setTimeout(cb, 0); });
+        })();
         
         window.tailwind.config = {
             theme: {
@@ -32,10 +37,10 @@
                     }
                 }
             }
-        }
+        };
     </script>
     <style>
-        * { -webkit-tap-highlight-color: transparent; }
+        * { -webkit-tap-highlight-color: transparent; outline: none !important; }
         body { 
           background-color: #F8FAFC; 
           color: #1E293B; 
@@ -46,10 +51,10 @@
         }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 99px; }
-        .prose h2 { font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid #F1F5F9; margin-top: 1.5rem; font-weight: 800; }
-        .hl-buy { background: #10B981; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; }
-        .hl-sell { background: #F43F5E; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; }
+        .hl-buy { background: #10B981; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 800; }
+        .hl-sell { background: #F43F5E; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 800; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 <script type="importmap">
 {
@@ -68,8 +73,8 @@
 <body>
     <div id="root">
         <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; background: #F8FAFC;">
-            <div style="width: 40px; height: 40px; border: 4px solid #E2E8F0; border-top-color: #10B981; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p style="margin-top: 20px; color: #64748B; font-weight: bold; font-size: 14px; letter-spacing: 0.1em;">系統啟動中...</p>
+            <div style="width: 32px; height: 32px; border: 3px solid #E2E8F0; border-top-color: #10B981; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <p style="margin-top: 16px; color: #94A3B8; font-weight: 700; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;">Initializing Terminal</p>
         </div>
     </div>
     <script type="module" src="/index.tsx"></script>

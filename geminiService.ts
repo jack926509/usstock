@@ -6,10 +6,13 @@ const MODEL_PRO = 'gemini-3-pro-image-preview';
 const MODEL_FLASH = 'gemini-3-flash-preview';
 
 /**
- * 依照規範直接從 process.env.API_KEY 獲取金鑰
+ * 每次請求前重新獲取 API Key，確保是最新選取的金鑰
  */
 const getAI = () => {
-  const apiKey = (process.env && process.env.API_KEY) || '';
+  const apiKey = (window as any).process?.env?.API_KEY || (process.env && process.env.API_KEY) || '';
+  if (!apiKey || apiKey === '""') {
+    throw new Error("AUTH_REQUIRED");
+  }
   return new GoogleGenAI({ apiKey });
 };
 
@@ -24,10 +27,9 @@ export interface IndexData {
 export const fetchMarketIndices = async (): Promise<IndexData[]> => {
   try {
     const ai = getAI();
-    // 使用 gemini-3-pro-image-preview 以支持 googleSearch 獲取實時數據
     const response = await ai.models.generateContent({
       model: MODEL_PRO,
-      contents: "Provide current price and percentage change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow Jones (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp. Example: [{\"name\": \"S&P 500\", \"symbol\": \"^GSPC\", \"change\": \"+12.5\", \"percent\": \"+0.25%\", \"isUp\": true}]",
+      contents: "Provide current price and percentage change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow Jones (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp.",
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -38,8 +40,11 @@ export const fetchMarketIndices = async (): Promise<IndexData[]> => {
       return JSON.parse(response.text.trim()) as IndexData[];
     }
     return [];
-  } catch (error) {
-    console.warn("Index fetch deferred (API Key potentially missing)");
+  } catch (error: any) {
+    if (error.message === "AUTH_REQUIRED" || error.message?.includes("API key not valid")) {
+       throw new Error("AUTH_REQUIRED");
+    }
+    console.warn("Index fetch deferred:", error);
     return [];
   }
 };
@@ -98,6 +103,9 @@ export const analyzeImage = async (
     }
     throw new Error("模型無回應");
   } catch (error: any) {
+    if (error.message === "AUTH_REQUIRED" || error.message?.includes("API key not valid")) {
+        throw new Error("AUTH_REQUIRED");
+    }
     throw new Error(error.message || "分析請求失敗");
   }
 };
@@ -123,6 +131,9 @@ export const sendChat = async (
     });
     return response.text || "暫時無法回應。";
   } catch (error: any) {
+    if (error.message === "AUTH_REQUIRED" || error.message?.includes("API key not valid")) {
+        throw new Error("AUTH_REQUIRED");
+    }
     throw new Error(error.message || "通訊錯誤");
   }
 };

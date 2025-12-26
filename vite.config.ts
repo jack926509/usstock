@@ -5,11 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // 確保 process.env 存在，防止瀏覽器報錯 Uncaught ReferenceError: process is not defined
-    'process.env': {
-      NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development'),
-      API_KEY: process.env.API_KEY ? JSON.stringify(process.env.API_KEY) : '""'
-    }
+    // 僅保留基本環境定義，不覆蓋 API_KEY
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
   },
   server: {
     port: 3000

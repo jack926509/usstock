@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        // 核心修正：確保執行階段 process.env 存在，且不會被編譯器寫死
+        // 在所有模組載入前預定義 process.env 物件，防止 ReferenceError
         window.process = window.process || { env: { NODE_ENV: 'development' } };
         
         window.tailwind.config = {

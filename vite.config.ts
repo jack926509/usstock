@@ -4,10 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  define: {
-    // 僅定義 NODE_ENV，不定義 API_KEY 以免覆蓋執行階段的注入
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
-  },
+  // 移除 define 塊，讓 process.env.API_KEY 保留為執行階段引用，不被寫死
   server: {
     port: 3000
   },

@@ -6,11 +6,11 @@ const MODEL_PRO = 'gemini-3-pro-image-preview';
 const MODEL_FLASH = 'gemini-3-flash-preview';
 
 /**
- * 每次請求前獲取最新的 process.env.API_KEY
+ * 根據規範，在每次請求前獲取 process.env.API_KEY
  */
 const getAI = () => {
   const apiKey = process.env.API_KEY;
-  // 排除多種形式的空金鑰 (包括 Vite 可能注入的字串型引號)
+  // 嚴格檢查金鑰是否存在且非空字串
   if (!apiKey || apiKey === '""' || apiKey === "''" || apiKey === '') {
     throw new Error("AUTH_REQUIRED");
   }

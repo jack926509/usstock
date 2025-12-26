@@ -20,7 +20,8 @@ const getAI = () => {
 export interface IndexData {
   name: string;
   symbol: string;
-  change: string;
+  // Using number to fix type comparison error in App.tsx line 21
+  change: number;
   percent: string;
   isUp: boolean;
 }
@@ -30,7 +31,7 @@ export const fetchMarketIndices = async (): Promise<IndexData[]> => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: MODEL_PRO,
-      contents: "Provide current price and percentage change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow Jones (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp.",
+      contents: "Provide current price and percentage change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow Jones (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp. Ensure 'change' is a numeric value.",
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",

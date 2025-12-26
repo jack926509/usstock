@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        // 在所有模組載入前預定義 process.env 物件，防止 ReferenceError
+        // 確保在所有模組載入前，環境變數容器已存在
         window.process = window.process || { env: { NODE_ENV: 'development' } };
         
         window.tailwind.config = {
@@ -49,6 +49,7 @@
         .prose h2 { font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid #F1F5F9; margin-top: 1.5rem; font-weight: 800; }
         .hl-buy { background: #10B981; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; }
         .hl-sell { background: #F43F5E; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 <script type="importmap">
 {
@@ -71,7 +72,6 @@
             <p style="margin-top: 20px; color: #64748B; font-weight: bold; font-size: 14px; letter-spacing: 0.1em;">系統啟動中...</p>
         </div>
     </div>
-    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

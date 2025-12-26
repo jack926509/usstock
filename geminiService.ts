@@ -6,11 +6,11 @@ const MODEL_PRO = 'gemini-3-pro-image-preview';
 const MODEL_FLASH = 'gemini-3-flash-preview';
 
 /**
- * 每次調用時動態獲取 API Key 並實例化 GoogleGenAI
+ * 依照規範直接從 process.env.API_KEY 獲取金鑰
  */
 const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  return new GoogleGenAI({ apiKey: apiKey || '' });
+  const apiKey = (process.env && process.env.API_KEY) || '';
+  return new GoogleGenAI({ apiKey });
 };
 
 export interface IndexData {
@@ -39,7 +39,7 @@ export const fetchMarketIndices = async (): Promise<IndexData[]> => {
     }
     return [];
   } catch (error) {
-    console.warn("Index fetch deferred:", error);
+    console.warn("Index fetch deferred (API Key potentially missing)");
     return [];
   }
 };

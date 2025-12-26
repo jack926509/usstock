@@ -63,13 +63,13 @@
 </head>
 <body>
     <div id="root">
-        <!-- 初始載入動畫，避免白屏等待感 -->
         <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; background: #F8FAFC;">
             <div style="width: 40px; height: 40px; border: 4px solid #E2E8F0; border-top-color: #10B981; border-radius: 50%; animation: spin 1s linear infinite;"></div>
             <p style="margin-top: 20px; color: #64748B; font-weight: bold; font-size: 14px; letter-spacing: 0.1em;">系統啟動中...</p>
         </div>
     </div>
     <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-    <script type="module" src="./index.tsx"></script>
+    <!-- 指向入口文件 -->
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

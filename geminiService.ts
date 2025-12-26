@@ -5,6 +5,11 @@ import { ChatMessage } from "../types";
 const MODEL_PRO = 'gemini-3-pro-preview'; 
 const MODEL_FLASH = 'gemini-3-flash-preview';
 
+/**
+ * 每次調用時動態實例化，確保獲取 aistudio 注入的最新金鑰
+ */
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 export interface IndexData {
   name: string;
   symbol: string;
@@ -14,8 +19,8 @@ export interface IndexData {
 }
 
 export const fetchMarketIndices = async (): Promise<IndexData[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = "Provide current price/percent change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp. Values must be strings (except isUp).";
+  const ai = getAI();
+  const prompt = "Provide current price/percent change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp.";
 
   try {
     const response = await ai.models.generateContent({
@@ -33,16 +38,16 @@ export const fetchMarketIndices = async (): Promise<IndexData[]> => {
     }
     return [];
   } catch (error) {
-    console.error("Gemini 市場數據錯誤", error);
+    console.warn("Index fetch failed", error);
     return [];
   }
 };
 
 const highlightKeywords = (text: string): string => {
   const replacements = [
-    { regex: /買入|做多|多單/g, class: 'hl-buy' },
-    { regex: /賣出|做空|空單/g, class: 'hl-sell' },
-    { regex: /觀望|中性|盤整|等待/g, class: 'hl-wait' }
+    { regex: /買入|做多|多單|看漲/g, class: 'hl-buy' },
+    { regex: /賣出|做空|空單|看跌/g, class: 'hl-sell' },
+    { regex: /觀望|盤整|中性|等待/g, class: 'hl-wait' }
   ];
   let processedText = text;
   replacements.forEach(r => {
@@ -56,10 +61,13 @@ export const analyzeImage = async (
   base64Image: string,
   mimeType: string = 'image/jpeg'
 ): Promise<{ summary: string; analysis: string }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `你是一位資深量化交易員與美股分析師。目標標的：${symbol}。
-分析圖中的移動平均線排列、K 線形態、支撐與壓力位。
-請按照格式 [SUMMARY] 和 [ANALYSIS] 回覆。重點使用加粗強調。`;
+  const ai = getAI();
+  const prompt = `你是一位專業的量化交易與技術分析專家。
+標的：${symbol}。
+請詳細分析圖中的移動平均線趨勢、K 線形態及支撐壓力位。
+格式要求：
+[SUMMARY] 簡短一句話給出操作建議。
+[ANALYSIS] 詳細的 Markdown 格式報告。`;
 
   try {
     const response = await ai.models.generateContent({
@@ -76,20 +84,20 @@ export const analyzeImage = async (
       const fullText = response.text;
       let summary = "";
       let analysis = "";
-      const summaryMatch = fullText.match(/\[SUMMARY\]([\s\S]*?)\[ANALYSIS\]/);
-      const analysisMatch = fullText.match(/\[ANALYSIS\]([\s\S]*)/);
-      if (summaryMatch) summary = summaryMatch[1].trim();
-      if (analysisMatch) analysis = analysisMatch[1].trim();
-      if (!summary && !analysis) analysis = fullText;
+      const summaryMatch = fullText.match(/\[SUMMARY\]([\s\S]*?)\[ANALYSIS\]/i);
+      const analysisMatch = fullText.match(/\[ANALYSIS\]([\s\S]*)/i);
+      
+      summary = summaryMatch ? summaryMatch[1].trim() : fullText.split('\n')[0];
+      analysis = analysisMatch ? analysisMatch[1].trim() : fullText;
 
       return {
         summary: highlightKeywords(summary),
         analysis: highlightKeywords(analysis)
       };
     }
-    throw new Error("模型未返回有效分析。");
+    throw new Error("模型無回應");
   } catch (error: any) {
-    throw new Error(error.message || "分析引擎繁忙或 API Key 無效。");
+    throw new Error(error.message || "分析請求失敗");
   }
 };
 
@@ -98,8 +106,8 @@ export const sendChat = async (
   symbol: string,
   context: string = ""
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const systemInstruction = `專業美股助手。標的 ${symbol}。參考內容：${context}`;
+  const ai = getAI();
+  const systemInstruction = `你是專業交易終端助手。目前標的：${symbol}。上下文背景：${context}`;
 
   const contents = history.map(msg => ({
     role: msg.role,
@@ -112,8 +120,8 @@ export const sendChat = async (
       contents,
       config: { systemInstruction }
     });
-    return response.text || "無法處理此問題。";
+    return response.text || "暫時無法回應。";
   } catch (error: any) {
-    throw new Error(error.message || "聊天服務異常。");
+    throw new Error("通訊錯誤");
   }
 };

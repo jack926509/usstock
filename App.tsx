@@ -61,37 +61,50 @@ const AppContent: React.FC = () => {
   const [hasKey, setHasKey] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
-  // 監控 Key 狀態並處理初始化
   useEffect(() => {
     const checkKey = async () => {
-      // 優先檢查 process.env
-      if (process.env.API_KEY && process.env.API_KEY !== "") {
-        setHasKey(true);
-        return;
-      }
-      
-      // 如果沒有 env 則嘗試 aistudio
       if (window.aistudio) {
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasKey(selected);
         if (!selected) setIsKeyModalOpen(true);
+      } else if (process.env.API_KEY) {
+        setHasKey(true);
       } else {
-        // 如果連 aistudio 都沒有且 env 也沒值，開啟 Modal 警告
         setIsKeyModalOpen(true);
       }
     };
     checkKey();
   }, []);
 
+  const refreshIndices = useCallback(async () => {
+    setIndicesLoading(true);
+    try {
+      const data = await fetchMarketIndices();
+      if (data && data.length > 0) setIndices(data);
+    } catch (e) {
+      console.warn("Indices refresh deferred");
+    } finally {
+      setIndicesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hasKey) {
+      refreshIndices();
+      const interval = setInterval(refreshIndices, 300000); 
+      return () => clearInterval(interval);
+    }
+  }, [hasKey, refreshIndices]);
+
   const handleActivateKey = async () => {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
       setIsKeyModalOpen(false);
-      setHasKey(true); // 根據規範，觸發即成功
-      showToast("授權中，即將重新整理系統...");
-      setTimeout(() => window.location.reload(), 1000);
+      setHasKey(true);
+      showToast("授權成功，正在同步數據...");
+      setTimeout(() => window.location.reload(), 500);
     } else {
-      showToast("系統環境不支援 API Key 選擇視窗，請確認環境變數已設定。", "error");
+      showToast("請確認環境變數 API_KEY 已設定。", "error");
     }
   };
 
@@ -116,31 +129,6 @@ const AppContent: React.FC = () => {
     window.addEventListener('resize', checkSize);
     return () => window.removeEventListener('resize', checkSize);
   }, []);
-
-  const refreshIndices = useCallback(async () => {
-    // 指數獲取需要 API_KEY
-    if (!process.env.API_KEY && !hasKey) return;
-    setIndicesLoading(true);
-    try {
-      const data = await fetchMarketIndices();
-      if (data && data.length > 0) setIndices(data);
-    } catch (e) {
-      console.warn("Indices refresh deferred");
-    } finally {
-      setIndicesLoading(false);
-    }
-  }, [hasKey]);
-
-  useEffect(() => {
-    if (hasKey) refreshIndices();
-  }, [hasKey, refreshIndices]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (hasKey) refreshIndices();
-    }, 300000); 
-    return () => clearInterval(interval);
-  }, [hasKey, refreshIndices]);
 
   const handleImageUpload = useCallback((file: File) => {
     const reader = new FileReader();
@@ -176,7 +164,6 @@ const AppContent: React.FC = () => {
     reader.readAsDataURL(file);
   }, [symbol, showToast]);
 
-  // Added handleChatSubmit to manage AI chat interactions
   const handleChatSubmit = useCallback(async () => {
     if (!chatInput.trim() || isChatLoading || !hasKey) return;
 
@@ -201,11 +188,8 @@ const AppContent: React.FC = () => {
     }
   }, [chatInput, chatHistory, isChatLoading, hasKey, symbol, analysis.summary, showToast]);
 
-  // Added effect to scroll to the bottom when chat history updates
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
   useEffect(() => {

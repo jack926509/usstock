@@ -2,15 +2,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MODEL_PRO = 'gemini-3-pro-preview'; 
+const MODEL_PRO = 'gemini-3-pro-image-preview'; 
 const MODEL_FLASH = 'gemini-3-flash-preview';
 
 /**
- * 每次調用時動態實例化，確保獲取 aistudio 注入的最新金鑰
+ * 每次調用時動態獲取 API Key 並實例化 GoogleGenAI
  */
 const getAI = () => {
   const apiKey = process.env.API_KEY;
-  // 這裡不直接 throw，由各個實例判斷有無 apiKey
   return new GoogleGenAI({ apiKey: apiKey || '' });
 };
 
@@ -24,15 +23,11 @@ export interface IndexData {
 
 export const fetchMarketIndices = async (): Promise<IndexData[]> => {
   try {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) return [];
-
     const ai = getAI();
-    const prompt = "Provide current price/percent change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp.";
-
+    // 使用 gemini-3-pro-image-preview 以支持 googleSearch 獲取實時數據
     const response = await ai.models.generateContent({
       model: MODEL_PRO,
-      contents: prompt,
+      contents: "Provide current price and percentage change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow Jones (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp. Example: [{\"name\": \"S&P 500\", \"symbol\": \"^GSPC\", \"change\": \"+12.5\", \"percent\": \"+0.25%\", \"isUp\": true}]",
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -40,12 +35,11 @@ export const fetchMarketIndices = async (): Promise<IndexData[]> => {
     });
 
     if (response.text) {
-      const cleaned = response.text.replace(/```json|```/g, '').trim();
-      return JSON.parse(cleaned) as IndexData[];
+      return JSON.parse(response.text.trim()) as IndexData[];
     }
     return [];
   } catch (error) {
-    console.warn("Index fetch failed or key missing");
+    console.warn("Index fetch deferred:", error);
     return [];
   }
 };
@@ -68,9 +62,6 @@ export const analyzeImage = async (
   base64Image: string,
   mimeType: string = 'image/jpeg'
 ): Promise<{ summary: string; analysis: string }> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key is missing. Please click the status indicator to configure.");
-
   try {
     const ai = getAI();
     const prompt = `你是一位專業的量化交易與技術分析專家。
@@ -116,9 +107,6 @@ export const sendChat = async (
   symbol: string,
   context: string = ""
 ): Promise<string> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key is missing.");
-
   try {
     const ai = getAI();
     const systemInstruction = `你是專業交易終端助手。目前標的：${symbol}。上下文背景：${context}`;

@@ -13,19 +13,8 @@ export interface IndexData {
   isUp: boolean;
 }
 
-const getSafeApiKey = () => {
-  try {
-    return process.env.API_KEY || "";
-  } catch (e) {
-    return "";
-  }
-};
-
 export const fetchMarketIndices = async (): Promise<IndexData[]> => {
-  const apiKey = getSafeApiKey();
-  if (!apiKey) return [];
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = "Provide current price/percent change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp. Values must be strings (except isUp).";
 
   try {
@@ -67,10 +56,7 @@ export const analyzeImage = async (
   base64Image: string,
   mimeType: string = 'image/jpeg'
 ): Promise<{ summary: string; analysis: string }> => {
-  const apiKey = getSafeApiKey();
-  if (!apiKey) throw new Error("API Key 未配置。");
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `你是一位資深量化交易員與美股分析師。目標標的：${symbol}。
 分析圖中的移動平均線排列、K 線形態、支撐與壓力位。
 請按照格式 [SUMMARY] 和 [ANALYSIS] 回覆。重點使用加粗強調。`;
@@ -103,7 +89,7 @@ export const analyzeImage = async (
     }
     throw new Error("模型未返回有效分析。");
   } catch (error: any) {
-    throw new Error(error.message || "分析引擎繁忙。");
+    throw new Error(error.message || "分析引擎繁忙或 API Key 無效。");
   }
 };
 
@@ -112,10 +98,7 @@ export const sendChat = async (
   symbol: string,
   context: string = ""
 ): Promise<string> => {
-  const apiKey = getSafeApiKey();
-  if (!apiKey) throw new Error("API Key 未配置。");
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const systemInstruction = `專業美股助手。標的 ${symbol}。參考內容：${context}`;
 
   const contents = history.map(msg => ({

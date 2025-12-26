@@ -10,15 +10,6 @@ const TradingViewWidget = lazy(() => import('./components/TradingViewWidget').th
 
 const INITIAL_CHIPS = ['AAPL', 'NVDA', 'TSLA', 'BTCUSD', 'ETHUSD'];
 
-// 安全地獲取環境變數
-const getApiKey = () => {
-  try {
-    return process.env.API_KEY || '';
-  } catch (e) {
-    return '';
-  }
-};
-
 const MarketIndices: React.FC<{ data: IndexData[]; loading: boolean; onRefresh: () => void }> = React.memo(({ data, loading, onRefresh }) => (
   <div className="hidden sm:flex flex-grow justify-center items-center px-4 gap-3 overflow-hidden">
     {data.length > 0 ? (
@@ -102,9 +93,6 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const apiKey = getApiKey();
-  const isApiKeyMissing = !apiKey || apiKey.trim() === '';
-
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([{ role: 'model', text: "終端已就緒。請上傳 K 線圖或輸入問題。" }]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -137,14 +125,13 @@ const AppContent: React.FC = () => {
   }, []);
 
   const refreshIndices = useCallback(async () => {
-    if (isApiKeyMissing || document.hidden) return;
     setIndicesLoading(true);
     try {
       const data = await fetchMarketIndices();
       if (data && data.length > 0) setIndices(data);
     } catch (e) { console.error(e); }
     finally { setIndicesLoading(false); }
-  }, [isApiKeyMissing]);
+  }, []);
 
   useEffect(() => {
     refreshIndices();
@@ -182,7 +169,6 @@ const AppContent: React.FC = () => {
   };
 
   const handleImageUpload = (file: File) => {
-    if (isApiKeyMissing) { showToast("API KEY 未配置", "error"); return; }
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64String = reader.result as string;
@@ -202,7 +188,7 @@ const AppContent: React.FC = () => {
         showToast('分析完成');
       } catch (err: any) {
         setAnalysis(prev => ({ ...prev, isAnalyzing: false, error: err.message }));
-        showToast('分析失敗', 'error');
+        showToast(err.message || '分析失敗', 'error');
       }
     };
     reader.readAsDataURL(file);
@@ -218,7 +204,7 @@ const AppContent: React.FC = () => {
       const responseText = await sendChat([...chatHistory, userMsg], symbol, analysis.result || "");
       setChatHistory(prev => [...prev, { role: 'model', text: responseText }]);
     } catch (err: any) {
-      showToast('回覆失敗', 'error');
+      showToast(err.message || '回覆失敗', 'error');
     } finally { setIsChatLoading(false); }
   };
 
@@ -266,9 +252,9 @@ const AppContent: React.FC = () => {
           </button>
 
           <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isApiKeyMissing ? 'bg-rose-500' : 'bg-emerald-500'} animate-pulse`} />
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest text-slate-400">
-              {isApiKeyMissing ? 'Offline' : 'Ready'}
+              System Ready
             </span>
           </div>
         </div>
@@ -494,7 +480,7 @@ const AppContent: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-xs font-bold text-slate-700">
                   <span className="w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">1</span>
-                  點擊瀏覽器下方的 <svg className="w-4 h-4 text-blue-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg> 分享按鈕
+                  點擊瀏覽器下方的 分享按鈕
                 </div>
                 <div className="flex items-center gap-3 text-xs font-bold text-slate-700">
                   <span className="w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">2</span>

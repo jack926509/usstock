@@ -1,0 +1,21 @@
+{
+  "name": "MA Strategy AI Pro",
+  "short_name": "MA Strategy",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#ffffff",
+  "description": "Intelligent Trading Workspace with Gemini AI",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2910/2910310.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2910/2910310.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

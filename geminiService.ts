@@ -6,11 +6,12 @@ const MODEL_PRO = 'gemini-3-pro-image-preview';
 const MODEL_FLASH = 'gemini-3-flash-preview';
 
 /**
- * 根據規範，在每次發起請求前才獲取 process.env.API_KEY 並創建實例
+ * 每次請求前獲取最新的 process.env.API_KEY
  */
 const getAI = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === '""' || apiKey === '') {
+  // 排除多種形式的空金鑰 (包括 Vite 可能注入的字串型引號)
+  if (!apiKey || apiKey === '""' || apiKey === "''" || apiKey === '') {
     throw new Error("AUTH_REQUIRED");
   }
   return new GoogleGenAI({ apiKey });
@@ -27,10 +28,9 @@ export interface IndexData {
 export const fetchMarketIndices = async (): Promise<IndexData[]> => {
   try {
     const ai = getAI();
-    // 使用 Pro 模型以支持 googleSearch 獲取實時數據
     const response = await ai.models.generateContent({
       model: MODEL_PRO,
-      contents: "Provide current price and percentage change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow Jones (^DJI). Return ONLY a valid JSON array with keys: name, symbol, change, percent, isUp.",
+      contents: "Provide current price and percentage change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow Jones (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp.",
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -42,7 +42,8 @@ export const fetchMarketIndices = async (): Promise<IndexData[]> => {
     }
     return [];
   } catch (error: any) {
-    if (error.message?.includes("API key not valid") || error.message?.includes("not found") || error.message === "AUTH_REQUIRED") {
+    const msg = error.message || "";
+    if (msg.includes("API key not valid") || msg.includes("Requested entity was not found") || msg === "AUTH_REQUIRED") {
       throw new Error("AUTH_REQUIRED");
     }
     console.warn("Index fetch deferred:", error);
@@ -104,10 +105,11 @@ export const analyzeImage = async (
     }
     throw new Error("模型無回應");
   } catch (error: any) {
-    if (error.message?.includes("API key not valid") || error.message?.includes("not found") || error.message === "AUTH_REQUIRED") {
+    const msg = error.message || "";
+    if (msg.includes("API key not valid") || msg.includes("Requested entity was not found") || msg === "AUTH_REQUIRED") {
       throw new Error("AUTH_REQUIRED");
     }
-    throw new Error(error.message || "分析請求失敗");
+    throw new Error(error.message || "分析失敗");
   }
 };
 
@@ -132,7 +134,8 @@ export const sendChat = async (
     });
     return response.text || "暫時無法回應。";
   } catch (error: any) {
-    if (error.message?.includes("API key not valid") || error.message?.includes("not found") || error.message === "AUTH_REQUIRED") {
+    const msg = error.message || "";
+    if (msg.includes("API key not valid") || msg.includes("Requested entity was not found") || msg === "AUTH_REQUIRED") {
       throw new Error("AUTH_REQUIRED");
     }
     throw new Error(error.message || "通訊錯誤");

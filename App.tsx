@@ -68,7 +68,8 @@ const AppContent: React.FC = () => {
       if (!selected) setIsKeyModalOpen(true);
       return selected;
     } else {
-      const exists = !!process.env.API_KEY && process.env.API_KEY !== '""';
+      const apiKey = process.env.API_KEY;
+      const exists = !!apiKey && apiKey !== '""' && apiKey !== "''" && apiKey !== "";
       setHasKey(exists);
       if (!exists) setIsKeyModalOpen(true);
       return exists;
@@ -104,14 +105,14 @@ const AppContent: React.FC = () => {
 
   const handleActivateKey = async () => {
     if (window.aistudio) {
-      await window.aistudio.openSelectKey();
+      // 根據規範：必須假設激活成功並立即繼續
+      window.aistudio.openSelectKey();
       setIsKeyModalOpen(false);
       setHasKey(true);
-      showToast("授權中，請稍候...");
-      // 根據規範，觸發後假設成功並刷新數據
-      setTimeout(refreshIndices, 1000);
+      showToast("授權啟動中，正在同步盤面...");
+      setTimeout(refreshIndices, 800);
     } else {
-      showToast("系統環境不支援 API Key 選擇視窗，請確認環境變數已設定。", "error");
+      showToast("請確認您的 API_KEY 環境變數已設定。", "error");
     }
   };
 
@@ -165,7 +166,7 @@ const AppContent: React.FC = () => {
           setIsKeyModalOpen(true);
         }
         setAnalysis(prev => ({ ...prev, isAnalyzing: false, error: err.message }));
-        showToast(err.message === "AUTH_REQUIRED" ? "請重新選取有效金鑰" : (err.message || '分析失敗'), 'error');
+        showToast(err.message === "AUTH_REQUIRED" ? "請重新選取付費專案金鑰" : (err.message || '分析失敗'), 'error');
       }
     };
     reader.readAsDataURL(file);
@@ -189,7 +190,7 @@ const AppContent: React.FC = () => {
         setHasKey(false);
         setIsKeyModalOpen(true);
       }
-      showToast(err.message || "發送失敗", "error");
+      showToast(err.message || "通訊失敗", "error");
     } finally {
       setIsChatLoading(false);
     }

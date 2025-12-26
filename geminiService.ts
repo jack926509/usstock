@@ -8,7 +8,13 @@ const MODEL_FLASH = 'gemini-3-flash-preview';
 /**
  * 每次調用時動態實例化，確保獲取 aistudio 注入的最新金鑰
  */
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === "") {
+    throw new Error("API Key is not configured.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export interface IndexData {
   name: string;
@@ -19,10 +25,10 @@ export interface IndexData {
 }
 
 export const fetchMarketIndices = async (): Promise<IndexData[]> => {
-  const ai = getAI();
-  const prompt = "Provide current price/percent change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp.";
-
   try {
+    const ai = getAI();
+    const prompt = "Provide current price/percent change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp.";
+
     const response = await ai.models.generateContent({
       model: MODEL_PRO,
       contents: prompt,
@@ -38,7 +44,7 @@ export const fetchMarketIndices = async (): Promise<IndexData[]> => {
     }
     return [];
   } catch (error) {
-    console.warn("Index fetch failed", error);
+    console.warn("Index fetch failed or key missing");
     return [];
   }
 };
@@ -61,15 +67,15 @@ export const analyzeImage = async (
   base64Image: string,
   mimeType: string = 'image/jpeg'
 ): Promise<{ summary: string; analysis: string }> => {
-  const ai = getAI();
-  const prompt = `你是一位專業的量化交易與技術分析專家。
+  try {
+    const ai = getAI();
+    const prompt = `你是一位專業的量化交易與技術分析專家。
 標的：${symbol}。
 請詳細分析圖中的移動平均線趨勢、K 線形態及支撐壓力位。
 格式要求：
 [SUMMARY] 簡短一句話給出操作建議。
 [ANALYSIS] 詳細的 Markdown 格式報告。`;
 
-  try {
     const response = await ai.models.generateContent({
       model: MODEL_FLASH,
       contents: {
@@ -106,15 +112,15 @@ export const sendChat = async (
   symbol: string,
   context: string = ""
 ): Promise<string> => {
-  const ai = getAI();
-  const systemInstruction = `你是專業交易終端助手。目前標的：${symbol}。上下文背景：${context}`;
-
-  const contents = history.map(msg => ({
-    role: msg.role,
-    parts: [{ text: msg.text }]
-  }));
-
   try {
+    const ai = getAI();
+    const systemInstruction = `你是專業交易終端助手。目前標的：${symbol}。上下文背景：${context}`;
+
+    const contents = history.map(msg => ({
+      role: msg.role,
+      parts: [{ text: msg.text }]
+    }));
+
     const response = await ai.models.generateContent({
       model: MODEL_FLASH,
       contents,
@@ -122,6 +128,6 @@ export const sendChat = async (
     });
     return response.text || "暫時無法回應。";
   } catch (error: any) {
-    throw new Error("通訊錯誤");
+    throw new Error(error.message || "通訊錯誤");
   }
 };

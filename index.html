@@ -15,15 +15,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        tailwind.config = {
+        window.tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    screens: {
-                        'xs': '400px',
                     },
                     colors: {
                         slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' },
@@ -44,52 +41,18 @@
           height: 100vh;
           height: -webkit-fill-available;
         }
-        
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 99px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .prose { font-size: 0.9rem; line-height: 1.6; color: #334155; }
-        .prose h2 { 
-            font-size: 1.05rem; 
-            display: flex; 
-            align-items: center; 
-            gap: 0.5rem;
-            padding-bottom: 0.4rem;
-            border-bottom: 1px solid #F1F5F9;
-            margin-top: 1.5rem;
-            font-weight: 800;
-            color: #0F172A;
-        }
-        .prose h2::before { 
-            content: ''; 
-            width: 3px; 
-            height: 1rem; 
-            background: #10B981; 
-            border-radius: 2px; 
-        }
-        .prose p { margin-bottom: 0.75rem; }
-
-        .hl-buy { background: #10B981; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; box-shadow: 0 0 8px rgba(16, 185, 129, 0.2); }
-        .hl-sell { background: #F43F5E; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; box-shadow: 0 0 8px rgba(244, 63, 94, 0.2); }
-        .hl-wait { background: #F59E0B; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; }
-
-        @keyframes slideIn { from { transform: translateX(10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .animate-slide-in { animation: slideIn 0.2s ease-out; }
-        
-        @keyframes fadeUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .animate-slide-up { animation: fadeUp 0.3s ease-out; }
+        .prose h2 { font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid #F1F5F9; margin-top: 1.5rem; font-weight: 800; }
+        .hl-buy { background: #10B981; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; }
+        .hl-sell { background: #F43F5E; color: white; padding: 1px 8px; border-radius: 4px; font-weight: 800; }
     </style>
 <script type="importmap">
 {
   "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "marked": "https://esm.sh/marked@^17.0.1",
     "vite": "https://esm.sh/vite@^7.3.0",
@@ -99,8 +62,14 @@
 </script>
 </head>
 <body>
-    <div id="root"></div>
-    <!-- 關鍵：載入應用程式主程式 -->
-    <script type="module" src="/index.tsx"></script>
+    <div id="root">
+        <!-- 初始載入動畫，避免白屏等待感 -->
+        <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; background: #F8FAFC;">
+            <div style="width: 40px; height: 40px; border: 4px solid #E2E8F0; border-top-color: #10B981; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <p style="margin-top: 20px; color: #64748B; font-weight: bold; font-size: 14px; letter-spacing: 0.1em;">系統啟動中...</p>
+        </div>
+    </div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>

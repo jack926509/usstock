@@ -10,6 +10,15 @@ const TradingViewWidget = lazy(() => import('./components/TradingViewWidget').th
 
 const INITIAL_CHIPS = ['AAPL', 'NVDA', 'TSLA', 'BTCUSD', 'ETHUSD'];
 
+// 安全地獲取環境變數
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || '';
+  } catch (e) {
+    return '';
+  }
+};
+
 const MarketIndices: React.FC<{ data: IndexData[]; loading: boolean; onRefresh: () => void }> = React.memo(({ data, loading, onRefresh }) => (
   <div className="hidden sm:flex flex-grow justify-center items-center px-4 gap-3 overflow-hidden">
     {data.length > 0 ? (
@@ -67,7 +76,6 @@ const AppContent: React.FC = () => {
   const [indices, setIndices] = useState<IndexData[]>([]);
   const [indicesLoading, setIndicesLoading] = useState(false);
 
-  // PWA Install logic
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
 
@@ -94,7 +102,8 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const isApiKeyMissing = !process.env.API_KEY || process.env.API_KEY.trim() === '';
+  const apiKey = getApiKey();
+  const isApiKeyMissing = !apiKey || apiKey.trim() === '';
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([{ role: 'model', text: "終端已就緒。請上傳 K 線圖或輸入問題。" }]);
   const [chatInput, setChatInput] = useState('');
@@ -245,7 +254,6 @@ const AppContent: React.FC = () => {
         <MarketIndices data={indices} loading={indicesLoading} onRefresh={refreshIndices} />
 
         <div className="flex items-center gap-3 ml-auto sm:ml-0">
-          {/* Download Button */}
           <button 
             onClick={handleInstallClick}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors group"

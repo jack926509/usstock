@@ -12,10 +12,10 @@ const INITIAL_CHIPS = ['AAPL', 'NVDA', 'TSLA', 'BTCUSD', 'ETHUSD'];
 
 const MarketIndices: React.FC<{ data: IndexData[]; loading: boolean; onRefresh: () => void }> = React.memo(({ data, loading, onRefresh }) => (
   <div className="hidden lg:flex flex-grow justify-center items-center px-8 gap-4 overflow-hidden">
-    {data.length > 0 ? (
+    {(data && data.length > 0) ? (
       data.map((idx, i) => (
-        <div key={i} className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-slate-100 bg-white shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:border-slate-300 transition-all cursor-default group">
-          <span className="text-[10px] font-black text-slate-400 group-hover:text-slate-600 transition-colors whitespace-nowrap">{idx.name}</span>
+        <div key={i} className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-slate-100 bg-white shadow-sm hover:border-slate-300 transition-all cursor-default">
+          <span className="text-[10px] font-black text-slate-400 whitespace-nowrap">{idx.name}</span>
           <span className={`text-[11px] font-mono font-bold ${idx.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
             {idx.percent}
           </span>
@@ -58,21 +58,26 @@ const AppContent: React.FC = () => {
 
   const [indices, setIndices] = useState<IndexData[]>([]);
   const [indicesLoading, setIndicesLoading] = useState(false);
-  const [hasKey, setHasKey] = useState(true);
+  const [hasKey, setHasKey] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
   // 監控 Key 狀態並處理初始化
   useEffect(() => {
     const checkKey = async () => {
-      // 如果 process.env.API_KEY 有值（可能是 Vercel 注入），則視為已有 Key
-      const isEnvKeySet = !!process.env.API_KEY && process.env.API_KEY !== "";
+      // 優先檢查 process.env
+      if (process.env.API_KEY && process.env.API_KEY !== "") {
+        setHasKey(true);
+        return;
+      }
       
-      if (!isEnvKeySet && window.aistudio) {
+      // 如果沒有 env 則嘗試 aistudio
+      if (window.aistudio) {
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasKey(selected);
         if (!selected) setIsKeyModalOpen(true);
       } else {
-        setHasKey(isEnvKeySet);
+        // 如果連 aistudio 都沒有且 env 也沒值，開啟 Modal 警告
+        setIsKeyModalOpen(true);
       }
     };
     checkKey();
@@ -82,13 +87,15 @@ const AppContent: React.FC = () => {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
       setIsKeyModalOpen(false);
-      setHasKey(true); // 根據規範，觸發後應立即視為成功以避免 Race Condition
-      showToast("AI 核心已激活，正在同步盤面...");
-      setTimeout(() => window.location.reload(), 800);
+      setHasKey(true); // 根據規範，觸發即成功
+      showToast("授權中，即將重新整理系統...");
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      showToast("系統環境不支援 API Key 選擇視窗，請確認環境變數已設定。", "error");
     }
   };
 
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([{ role: 'model', text: "終端連結成功。請提供盤面快照或查詢特定標的策略。" }]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([{ role: 'model', text: "系統就緒。請上傳盤面截圖或輸入標的進行諮詢。" }]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   
@@ -111,28 +118,29 @@ const AppContent: React.FC = () => {
   }, []);
 
   const refreshIndices = useCallback(async () => {
-    // 只有在已有 Key 的情況下才請求指數，避免噴錯
-    if (!hasKey) return;
+    // 指數獲取需要 API_KEY
+    if (!process.env.API_KEY && !hasKey) return;
     setIndicesLoading(true);
     try {
       const data = await fetchMarketIndices();
       if (data && data.length > 0) setIndices(data);
     } catch (e) {
-      console.warn("Market data sync delayed");
+      console.warn("Indices refresh deferred");
     } finally {
       setIndicesLoading(false);
     }
   }, [hasKey]);
 
   useEffect(() => {
-    refreshIndices();
-    const interval = setInterval(refreshIndices, 180000); 
-    return () => clearInterval(interval);
-  }, [refreshIndices]);
+    if (hasKey) refreshIndices();
+  }, [hasKey, refreshIndices]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, activeTab]);
+    const interval = setInterval(() => {
+      if (hasKey) refreshIndices();
+    }, 300000); 
+    return () => clearInterval(interval);
+  }, [hasKey, refreshIndices]);
 
   const handleImageUpload = useCallback((file: File) => {
     const reader = new FileReader();
@@ -144,7 +152,7 @@ const AppContent: React.FC = () => {
       setActiveTab('analysis');
       if (window.innerWidth < 1024) setMobileTab('ai');
       
-      showToast('偵測到截圖快照，啟動深度診斷...');
+      showToast('偵測到快照，啟動深度分析...');
       
       try {
         const { summary, analysis: markdownResult } = await analyzeImage(symbol, base64Data, file.type);
@@ -155,9 +163,8 @@ const AppContent: React.FC = () => {
           result: htmlResult as string,
           summary: summary
         }));
-        showToast('分析報告生成完畢');
+        showToast('分析完成');
       } catch (err: any) {
-        // 如果錯誤訊息包含實體未找到，重置 Key 狀態
         if (err.message?.includes("Requested entity was not found")) {
           setHasKey(false);
           setIsKeyModalOpen(true);
@@ -169,7 +176,38 @@ const AppContent: React.FC = () => {
     reader.readAsDataURL(file);
   }, [symbol, showToast]);
 
-  // 強化版全域貼上監聽器 (使用 window 級別並設置為 Capture)
+  // Added handleChatSubmit to manage AI chat interactions
+  const handleChatSubmit = useCallback(async () => {
+    if (!chatInput.trim() || isChatLoading || !hasKey) return;
+
+    const userMsg: ChatMessage = { role: 'user', text: chatInput };
+    const newHistory = [...chatHistory, userMsg];
+    
+    setChatHistory(newHistory);
+    setChatInput('');
+    setIsChatLoading(true);
+
+    try {
+      const response = await sendChat(newHistory, symbol, analysis.summary || "");
+      setChatHistory(prev => [...prev, { role: 'model', text: response }]);
+    } catch (err: any) {
+      if (err.message?.includes("Requested entity was not found")) {
+        setHasKey(false);
+        setIsKeyModalOpen(true);
+      }
+      showToast(err.message || "發送失敗", "error");
+    } finally {
+      setIsChatLoading(false);
+    }
+  }, [chatInput, chatHistory, isChatLoading, hasKey, symbol, analysis.summary, showToast]);
+
+  // Added effect to scroll to the bottom when chat history updates
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatHistory]);
+
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
@@ -180,8 +218,7 @@ const AppContent: React.FC = () => {
           const file = items[i].getAsFile();
           if (file) {
             handleImageUpload(file);
-            // 阻止事件進一步傳播，避免其他組件干擾
-            e.stopPropagation();
+            e.preventDefault();
             return;
           }
         }
@@ -192,24 +229,8 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('paste', handlePaste, true);
   }, [handleImageUpload]);
 
-  const handleChatSubmit = async () => {
-    if (!chatInput.trim() || isChatLoading) return;
-    const userMsg: ChatMessage = { role: 'user', text: chatInput };
-    setChatHistory(prev => [...prev, userMsg]);
-    setChatInput('');
-    setIsChatLoading(true);
-    try {
-      const responseText = await sendChat([...chatHistory, userMsg], symbol, analysis.result || "");
-      setChatHistory(prev => [...prev, { role: 'model', text: responseText }]);
-    } catch (err: any) {
-      showToast('回應延遲，請稍後再試', 'error');
-    } finally { setIsChatLoading(false); }
-  };
-
   return (
     <div className="h-screen flex flex-col bg-slate-50 overflow-hidden font-sans text-slate-900 selection:bg-emerald-100 antialiased">
-      
-      {/* 頂部標頭 */}
       <header className="h-14 bg-white border-b border-slate-200/60 px-5 flex items-center justify-between z-50 flex-shrink-0 safe-top backdrop-blur-md">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 bg-slate-950 rounded-[10px] flex items-center justify-center text-white font-black text-xl shadow-lg shadow-slate-200">M</div>
@@ -231,10 +252,7 @@ const AppContent: React.FC = () => {
         </div>
       </header>
 
-      {/* 主體區域 */}
       <main className="flex-grow flex flex-col lg:flex-row overflow-hidden relative">
-        
-        {/* 圖表板塊 */}
         <div className={`flex flex-col relative transition-all duration-300 ${!isDesktop && mobileTab !== 'chart' ? 'hidden' : 'flex'} flex-grow h-full bg-white`}>
           <div className="h-11 border-b border-slate-100 px-4 flex items-center gap-3 overflow-x-auto no-scrollbar flex-shrink-0 bg-slate-50/30">
             <div className="flex items-center bg-white rounded-lg border border-slate-200 px-2 h-7.5">
@@ -259,11 +277,10 @@ const AppContent: React.FC = () => {
               <TradingViewWidget symbol={symbol} />
             </Suspense>
 
-            {/* 分析按鈕與提示 */}
             <div className="absolute bottom-8 right-8 flex flex-col items-end gap-3 z-40">
               <div className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-xl border border-slate-200 shadow-xl text-[10px] font-black text-slate-500 animate-bounce hidden md:flex items-center gap-2">
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
-                <span>💡 截圖後在此按下 <span className="text-slate-900 underline decoration-emerald-400 decoration-2">Ctrl + V</span> 即刻診斷</span>
+                <span>💡 截圖後在此按下 <span className="text-slate-900 underline decoration-emerald-400 decoration-2">Ctrl + V</span> 直接診斷</span>
               </div>
               <button 
                 onClick={() => fileInputRef.current?.click()}
@@ -277,15 +294,11 @@ const AppContent: React.FC = () => {
           </div>
         </div>
 
-        {/* 智能分析側板 */}
-        <div 
-          className={`flex-col bg-[#F9FBFC] transition-all duration-300 border-l border-slate-200/50 ${!isDesktop && mobileTab !== 'ai' ? 'hidden' : 'flex'}`} 
-          style={{ width: isDesktop ? '38%' : '100%' }}
-        >
-          <div className="p-6 flex flex-col h-full overflow-hidden">
+        <div className={`flex-col bg-[#F9FBFC] transition-all duration-300 border-l border-slate-200/50 ${!isDesktop && mobileTab !== 'ai' ? 'hidden' : 'flex'} flex-grow lg:flex-none h-full overflow-hidden`} style={{ width: isDesktop ? '38%' : '100%' }}>
+          <div className="p-6 flex flex-col h-full">
              <div className="flex p-1.5 bg-slate-100 rounded-[14px] mb-6 shadow-inner">
-                <button onClick={() => setActiveTab('analysis')} className={`flex-1 py-2.5 text-[11px] font-black uppercase rounded-[10px] transition-all ${activeTab === 'analysis' ? 'bg-white shadow-md text-slate-950 ring-1 ring-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}>分析報告</button>
-                <button onClick={() => setActiveTab('chat')} className={`flex-1 py-2.5 text-[11px] font-black uppercase rounded-[10px] transition-all ${activeTab === 'chat' ? 'bg-white shadow-md text-slate-950 ring-1 ring-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}>策略諮詢</button>
+                <button onClick={() => setActiveTab('analysis')} className={`flex-1 py-2.5 text-[11px] font-black uppercase rounded-[10px] transition-all ${activeTab === 'analysis' ? 'bg-white shadow-md text-slate-950' : 'text-slate-400'}`}>分析報告</button>
+                <button onClick={() => setActiveTab('chat')} className={`flex-1 py-2.5 text-[11px] font-black uppercase rounded-[10px] transition-all ${activeTab === 'chat' ? 'bg-white shadow-md text-slate-950' : 'text-slate-400'}`}>策略諮詢</button>
              </div>
              
              <div className="flex-grow overflow-y-auto custom-scrollbar pr-1">
@@ -335,7 +348,7 @@ const AppContent: React.FC = () => {
              </div>
 
              {activeTab === 'chat' && (
-               <div className="absolute bottom-6 left-6 right-6 lg:relative lg:bottom-0 lg:left-0 lg:right-0 mt-4 flex gap-2 p-2 bg-white rounded-2xl border border-slate-200 focus-within:border-slate-900 focus-within:shadow-lg transition-all">
+               <div className="mt-4 flex gap-2 p-2 bg-white rounded-2xl border border-slate-200 focus-within:border-slate-900 focus-within:shadow-lg transition-all">
                   <input 
                     type="text" value={chatInput} 
                     onChange={e => setChatInput(e.target.value)} 
@@ -354,26 +367,8 @@ const AppContent: React.FC = () => {
              )}
           </div>
         </div>
-
-        {/* 手機底部導覽 */}
-        {!isDesktop && (
-          <div className="h-18 bg-white border-t border-slate-200 flex items-center justify-around z-[60] pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.05)] px-6">
-            <button onClick={() => setMobileTab('chart')} className={`flex flex-col items-center gap-1 transition-all ${mobileTab === 'chart' ? 'text-slate-950 scale-110' : 'text-slate-300'}`}>
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-              <span className="text-[10px] font-black uppercase tracking-widest">Chart</span>
-            </button>
-            <button onClick={() => setMobileTab('ai')} className={`flex flex-col items-center gap-1 transition-all ${mobileTab === 'ai' ? 'text-slate-950 scale-110' : 'text-slate-300'}`}>
-              <div className="relative">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                {analysis.result && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse ring-2 ring-white"></div>}
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest">A.I. Engine</span>
-            </button>
-          </div>
-        )}
       </main>
 
-      {/* 授權對話框 */}
       <Modal isOpen={isKeyModalOpen} onClose={() => {}} title="授權 AI 核心">
         <div className="text-center space-y-6 py-2">
           <div className="w-16 h-16 bg-slate-950 rounded-2xl flex items-center justify-center mx-auto text-emerald-400 shadow-xl animate-pulse ring-4 ring-emerald-500/10">
@@ -381,7 +376,7 @@ const AppContent: React.FC = () => {
           </div>
           <div className="space-y-2">
              <h4 className="text-[15px] font-black text-slate-900 uppercase">啟動專業版引擎</h4>
-             <p className="text-[11.5px] text-slate-500 font-bold leading-relaxed px-2">偵測到服務尚未連結。請透過下方按鈕選取您的 API Key 以啟動毫秒級盤面分析功能。</p>
+             <p className="text-[11.5px] text-slate-500 font-bold leading-relaxed px-2">偵測到服務尚未連結。請點擊下方按鈕選取您的 API Key 以啟動分析功能。</p>
           </div>
           <button 
             onClick={handleActivateKey} 

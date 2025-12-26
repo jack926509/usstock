@@ -10,10 +10,8 @@ const MODEL_FLASH = 'gemini-3-flash-preview';
  */
 const getAI = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "") {
-    throw new Error("API Key is not configured.");
-  }
-  return new GoogleGenAI({ apiKey });
+  // 這裡不直接 throw，由各個實例判斷有無 apiKey
+  return new GoogleGenAI({ apiKey: apiKey || '' });
 };
 
 export interface IndexData {
@@ -26,6 +24,9 @@ export interface IndexData {
 
 export const fetchMarketIndices = async (): Promise<IndexData[]> => {
   try {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) return [];
+
     const ai = getAI();
     const prompt = "Provide current price/percent change for S&P 500 (^GSPC), Nasdaq (^IXIC), and Dow (^DJI). Return ONLY valid JSON array with keys: name, symbol, change, percent, isUp.";
 
@@ -67,6 +68,9 @@ export const analyzeImage = async (
   base64Image: string,
   mimeType: string = 'image/jpeg'
 ): Promise<{ summary: string; analysis: string }> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API Key is missing. Please click the status indicator to configure.");
+
   try {
     const ai = getAI();
     const prompt = `你是一位專業的量化交易與技術分析專家。
@@ -112,6 +116,9 @@ export const sendChat = async (
   symbol: string,
   context: string = ""
 ): Promise<string> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API Key is missing.");
+
   try {
     const ai = getAI();
     const systemInstruction = `你是專業交易終端助手。目前標的：${symbol}。上下文背景：${context}`;
